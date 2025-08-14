@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Talent Sourcer – Chat</title>
+
+  <!-- Enhancements: Markdown + sanitizer + code highlighting -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+
+  <style>
+  .starters{padding:10px 18px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:56px;z-index:4}
+  .st-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .st-tab{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:12px}
+  .st-tab.active{background:var(--accent-weak);border-color:#bfdbfe}
+  .st-chips{display:flex;gap:6px;flex-wrap:wrap}
+  .st-chip{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:12px}
+
+
+    :root{
+      --bg:#ffffff; --surface:#f8fafc; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
+      --accent:#2563eb; --accent-weak:#dbeafe; --bot-bg:#f1f5f9; --danger:#ef4444;
+      --radius:16px; --shadow:0 8px 22px rgba(2,6,23,.08);
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);font-family:var(--font);color:var(--text)}
+    .wrap{min-height:100vh;min-height:100dvh;display:flex}
+    .chat{flex:1;display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;background:var(--bg)}
+
+    /* Header */
+    .hdr{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.96);backdrop-filter:saturate(1.1) blur(6px)}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:28px;height:28px;border-radius:8px;object-fit:cover;border:1px solid var(--border)}
+    .title{font-size:16px;font-weight:800;letter-spacing:.2px}
+    .spacer{flex:1}
+    .chip{font-size:12px;color:var(--muted)}
+    .btn{height:32px;padding:0 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+    .btn.primary{height:36px;background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 6px 14px rgba(37,99,235,.20)}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .btn.icon{display:inline-flex;align-items:center;gap:6px}
+
+    /* Messages */
+    .msgs{flex:1;overflow:auto;padding:18px;scroll-behavior:smooth;background:linear-gradient(180deg, rgba(2,6,23,.02), rgba(2,6,23,0) 60%)}
+    .row{display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:flex-start;margin:10px 0}
+    .row.user{grid-template-columns:1fr 40px}
+    .avatar{width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;background:var(--accent-weak);color:#1e3a8a;border:1px solid var(--border);overflow:hidden}
+    .avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .avatar.bot{background:var(--bot-bg);color:#036857}
+    .bubble{max-width:900px;width:fit-content;padding:12px 14px;border-radius:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;box-shadow:0 4px 12px rgba(2,6,23,.06);border:1px solid var(--border)}
+    .bubble.user{background:var(--accent-weak);border-color:#bfdbfe;margin-left:auto;border-bottom-right-radius:6px}
+    .bubble.bot{background:var(--bot-bg);border-bottom-left-radius:6px}
+    .meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:11px;margin-top:6px;flex-wrap:wrap}
+    .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .chipbtn{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer}
+
+    /* Typing bubble */
+    .typing{display:inline-flex;gap:5px;align-items:center}
+    .typing i{width:7px;height:7px;border-radius:999px;background:var(--accent);opacity:.7;animation:b 1.2s infinite ease-in-out}
+    .typing i:nth-child(2){animation-delay:.12s}
+    .typing i:nth-child(3){animation-delay:.24s}
+    @keyframes b{0%,80%,100%{transform:translateY(0);opacity:.3}40%{transform:translateY(-3px);opacity:1}}
+
+    /* Composer */
+    .composer{position:sticky;bottom:0;z-index:5;display:flex;gap:12px;align-items:flex-end;padding:12px 18px;border-top:1px solid var(--border);background:rgba(255,255,255,.98);backdrop-filter:saturate(1.1) blur(6px);padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+    .ta{flex:1;min-height:48px;max-height:220px;resize:none;overflow:hidden;padding:12px 14px;font-size:16px;color:var(--text);background:#fff;border:1px solid var(--border);border-radius:12px;outline:none}
+    .ta::placeholder{color:var(--muted)}
+    .send{min-width:108px;height:48px}
+
+    .toBottom{position:fixed;right:16px;bottom:82px;z-index:10;border-radius:999px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow);height:36px;width:36px;display:none;align-items:center;justify-content:center;cursor:pointer}
+    .toBottom.show{display:flex}
+
+    @media (max-width:640px){
+      .msgs{padding:12px}
+      .bubble{max-width:92vw}
+      .send{min-width:88px}
+      .hdr{gap:8px}
+      .title{font-size:15px}
+    }
+    /* Markdown tweaks */
+    .bubble.bot h1,.bubble.bot h2,.bubble.bot h3{margin:6px 0}
+    .bubble.bot pre{overflow:auto;padding:10px;border-radius:10px;border:1px solid var(--border);background:#f6f8fa}
+    .bubble.bot code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="chat">
+      <div class="hdr">
+        <div class="brand">
+          <img id="brandLogo" class="logo" alt="Logo"/>
+          <div class="title" id="brandTitle">Talent Assistant</div>
+        </div>
+        <div class="spacer"></div>
+        <span class="chip" id="status" aria-live="polite">Ready</span>
+        <button class="btn" id="newBtn" title="Start new thread">New</button>
+      </div>
+<div class="starters" id="starters" aria-label="Conversation starters">
+  <div class="st-tabs" id="stTabs"></div>
+  <div class="st-chips" id="stChips"></div>
+</div>
+
+      <div class="msgs" id="msgs" aria-live="polite" aria-label="Conversation"></div>
+      <div id="typingRow" class="row" style="display:none">
+        <div class="avatar bot"><span>🤖</span></div>
+        <div class="bubble bot"><span class="typing"><i></i><i></i><i></i></span></div>
+      </div>
+      <button class="toBottom" id="toBottom" title="Scroll to latest">↓</button>
+
+      <div class="composer">
+        <textarea id="input" class="ta" placeholder="Type your message… (Enter to send, Shift+Enter for newline)" aria-label="Message"></textarea>
+        <button class="btn primary send" id="send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // --- Config (brand via query params optional) ---
+  const params = new URLSearchParams(location.search);
+  const BRAND_TITLE = params.get('title') || 'Talent Sourcer Assistant';
+  const LOGO_URL    = params.get('logo')  || '';
+  const BOT_AVATAR  = params.get('bot')   || '';
+  const USER_AVATAR = params.get('user')  || '';
+// --- Conversation Starters ---
+// URL params you can tweak per page: ?starters=1&autoSend=0&flow=hiring
+const ENABLE_STARTERS = (new URLSearchParams(location.search).get('starters') ?? '1') === '1';
+const START_AUTO_SEND = (new URLSearchParams(location.search).get('autoSend') ?? '0') === '1';
+const START_DEFAULT_FLOW = (new URLSearchParams(location.search).get('flow') || 'hiring').toLowerCase();
+
+const STARTERS = {
+  hiring: [
+    "I’m hiring a {role}. Ask me must-haves and nice-to-haves.",
+    "Draft a JD for a {role} in {location} with 5 must-haves.",
+    "Turn this JD into a LinkedIn post optimized for reach.",
+    "Write a first-touch outreach for {role} with 3 personalization hooks.",
+    "Create a sourcing plan: top 5 communities to post this {role}."
+  ],
+  outcome: [
+    "Define 90-day KPIs for a {role}. Start with business outcomes.",
+    "Rewrite this role to be outcome-based instead of responsibilities.",
+    "Map KPIs → skills → interview loop for {role}."
+  ],
+  automation: [
+    "Set up candidate follow-ups (Day 0/2/5) via WhatsApp + Email.",
+    "Create an auto-reply when a candidate schedules, with prep notes.",
+    "Build a mini-workflow: parse CV → score → schedule link."
+  ],
+  screening: [
+    "Create a 30-min screening script for {role} (icebreaker → experience → deep dive → red flags).",
+    "Generate 6 competency questions to validate {skill} for {role}.",
+    "Write a scorecard rubric for {role}: must/strong/nice."
+  ]
+};
+// internal state
+let startersFlow = START_DEFAULT_FLOW;  // 'hiring' | 'outcome' | 'automation' | 'screening'
+
+  // --- State ---
+  const messages = [];          // {role:'user'|'assistant', text, ts, suggestions?, meta?}
+  let pending = false;
+  let pageReady = false;
+  const outbox = [];
+  let threadId = localStorage.getItem('threadId') || Math.random().toString(36).slice(2,10);
+  localStorage.setItem('threadId', threadId);
+  let currentStream = null;     // {id, idx, text}
+
+  // --- DOM refs ---
+  const elMsgs   = document.getElementById('msgs');
+  const elInput  = document.getElementById('input');
+  const elSend   = document.getElementById('send');
+  const elStatus = document.getElementById('status');
+  const elNew    = document.getElementById('newBtn');
+  const elToBtm  = document.getElementById('toBottom');
+  const elTyping = document.getElementById('typingRow');
+  const elLogo   = document.getElementById('brandLogo');
+  const elTitle  = document.getElementById('brandTitle');
+// DOM refs for starters
+const elStarters = document.getElementById('starters');
+const elStTabs   = document.getElementById('stTabs');
+const elStChips  = document.getElementById('stChips');
+
+function renderStarterTabs() {
+  if (!ENABLE_STARTERS) { if (elStarters) elStarters.style.display = 'none'; return; }
+  const flows = Object.keys(STARTERS);
+  elStTabs.innerHTML = flows.map(f =>
+    `<button class="st-tab ${f===startersFlow?'active':''}" data-flow="${f}">${f[0].toUpperCase()+f.slice(1)}</button>`
+  ).join('');
+  elStTabs.querySelectorAll('.st-tab').forEach(btn => {
+    btn.onclick = () => { startersFlow = btn.dataset.flow; renderStarterChips(); renderStarterTabs(); };
+  });
+}
+
+function renderStarterChips() {
+  const items = STARTERS[startersFlow] || [];
+  elStChips.innerHTML = items.map((t,i) =>
+    `<button class="st-chip" data-idx="${i}">${escapeHtml(t)}</button>`
+  ).join('');
+  elStChips.querySelectorAll('.st-chip').forEach(btn => {
+    btn.onclick = () => {
+      const txt = items[+btn.dataset.idx] || '';
+      // Insert template into the input (placeholders like {role}, {location} remain for quick edit)
+      elInput.value = txt;
+      autoresize();
+      // optional auto-send
+      if (START_AUTO_SEND) send();
+      else try { elInput.focus({ preventScroll:true }); } catch(_){}
+    };
+  });
+}
+
+  // --- Branding init ---
+  elTitle.textContent = BRAND_TITLE;
+  if (LOGO_URL) elLogo.src = LOGO_URL; else elLogo.style.display = 'none';
+
+  // --- Helpers ---
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  }
+  function renderMarkdown(md){
+    const html = marked.parse(md || '');
+    const safe = DOMPurify.sanitize(html, { ADD_ATTR: ['target','rel'] });
+    const div = document.createElement('div');
+    div.innerHTML = safe;
+    div.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+    return div.innerHTML;
+  }
+  function scrollToBottom(){ try { elMsgs.scrollTop = elMsgs.scrollHeight; } catch(_){} }
+  function setPending(v){
+    pending = !!v;
+    elSend.disabled = pending;
+    elTyping.style.display = pending ? '' : 'none';
+    elStatus.textContent = pending ? 'Thinking…' : 'Ready';
+  }
+  function autoresize(){
+    elInput.style.height = 'auto';
+    const max = parseInt(getComputedStyle(elInput).maxHeight || '220', 10);
+    elInput.style.height = Math.min(elInput.scrollHeight, max) + 'px';
+  }
+  function avatarHTML(role){
+    const img = role === 'assistant' ? BOT_AVATAR : USER_AVATAR;
+    if (img) return `<div class="avatar ${role==='assistant'?'bot':''}"><img src="${escapeHtml(img)}" alt=""></div>`;
+    const emoji = role === 'assistant' ? '🤖' : '🧑';
+    return `<div class="avatar ${role==='assistant'?'bot':''}"><span>${emoji}</span></div>`;
+  }
+  function actionBar(i){
+    return `<div class="meta">
+      <button class="btn icon" data-act="copy" data-id="${i}">Copy</button>
+      <button class="btn icon" data-act="regen" data-id="${i}">Regenerate</button>
+      <span class="chip" data-meta="${i}"></span>
+    </div>`;
+  }
+  function suggestionsChips(arr = [], i){
+    if (!arr.length) return '';
+    return `<div class="chips">
+      ${arr.map(s => `<button class="chipbtn" data-act="suggest" data-id="${i}" data-text="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+    </div>`;
+  }
+
+  function render(){
+    const html = messages.map((m, i) => `
+      <div class="row ${m.role==='user'?'user':''}">
+        ${m.role==='user' ? '' : avatarHTML('assistant')}
+        <div class="bubble ${m.role==='user'?'user':'bot'}">
+          ${m.role==='assistant' ? renderMarkdown(m.text) : escapeHtml(m.text)}
+          ${m.role==='assistant' ? actionBar(i) : ''}
+          ${m.role==='assistant' && m.suggestions ? suggestionsChips(m.suggestions, i) : ''}
+        </div>
+        ${m.role==='user' ? avatarHTML('user') : ''}
+      </div>
+    `).join('');
+    elMsgs.innerHTML = html;
+
+    // bind actions
+    elMsgs.querySelectorAll('[data-act="copy"]').forEach(b => b.onclick = () => {
+      const idx = +b.dataset.id; navigator.clipboard.writeText(messages[idx]?.text || '');
+    });
+    elMsgs.querySelectorAll('[data-act="regen"]').forEach(b => b.onclick = () => {
+      // find the most recent user message before this assistant
+      for (let j = (+b.dataset.id)-1; j >= 0; j--) {
+        if (messages[j].role === 'user') { elInput.value = messages[j].text; autoresize(); send(); break; }
+      }
+    });
+    elMsgs.querySelectorAll('[data-act="suggest"]').forEach(b => b.onclick = () => {
+      elInput.value = b.dataset.text || ''; autoresize(); send();
+    });
+
+    // meta line (tokens/model)
+    messages.forEach((m, i) => {
+      if (!m.meta) return;
+      const span = elMsgs.querySelector(`[data-meta="${i}"]`);
+      if (!span) return;
+      const t = [];
+      if (m.meta.tokens) {
+        const u = m.meta.tokens;
+        t.push(`tok ${u.total ?? ''}${u.prompt ? ` (p:${u.prompt}` : ''}${u.completion ? ` c:${u.completion})` : (u.prompt ? ')' : '')}`);
+      }
+      if (m.meta.model) t.push(m.meta.model);
+      if (m.meta.prompt_version) t.push(`pv:${m.meta.prompt_version}`);
+      if (t.length) span.textContent = t.join(' · ');
+    });
+
+    postResize();
+    scrollToBottom();
+  }
+// Init on load
+if (ENABLE_STARTERS) { renderStarterTabs(); renderStarterChips(); }
+
+// Allow page/backend to override starters at runtime:
+// page code can do: $w('#html1').postMessage({ type:'setStarters', data:{ hiring:[...], ... }, flow:'automation' });
+window.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'setStarters' && d.data && typeof d.data === 'object') {
+    Object.assign(STARTERS, d.data);
+    if (d.flow && STARTERS[d.flow]) startersFlow = d.flow;
+    if (ENABLE_STARTERS) { renderStarterTabs(); renderStarterChips(); }
+  }
+});
+
+  function updateLastAssistant(text, meta){
+    // append/replace last assistant bubble (for streaming)
+    let idx = messages.length - 1;
+    if (idx < 0 || messages[idx].role !== 'assistant') {
+      messages.push({ role:'assistant', text:'', ts: Date.now() });
+      idx = messages.length - 1;
+    }
+    messages[idx].text = text;
+    if (meta) messages[idx].meta = meta;
+    render();
+  }
+
+  function addMessage(role, text, meta){
+    messages.push({ role, text: String(text), ts: Date.now(), ...(meta?{meta}:{} ) });
+    render();
+  }
+
+  // --- Page bridge (postMessage) ---
+  function postToPageChat(text){
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2,10);
+      function onMsg(ev){
+        const d = ev.data || {};
+        if (d.type === 'chatResult' && d.id === id) {
+          window.removeEventListener('message', onMsg);
+          resolve(d);
+        }
+        if (d.type === 'delta' && d.id === id) {
+          // streaming delta path
+          if (d.start) { currentStream = { id, idx: messages.length, text: '' }; setPending(true); return; }
+          if (typeof d.text === 'string') { currentStream.text += d.text; updateLastAssistant(currentStream.text); return; }
+          if (d.done) { setPending(false); elStatus.textContent = 'Responded'; currentStream = null; }
+        }
+      }
+      window.addEventListener('message', onMsg);
+      const payload = { type:'chat', id, text };
+      pageReady ? parent.postMessage(payload, '*') : outbox.push(payload);
+    });
+  }
+
+  window.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (!d || typeof d !== 'object') return;
+
+    if (d.type === 'pageReady'){
+      pageReady = true;
+      while(outbox.length) parent.postMessage(outbox.shift(), '*');
+      return;
+    }
+    if (d.type === 'setThread' && typeof d.value === 'string' && d.value.trim()){
+      threadId = d.value.trim(); localStorage.setItem('threadId', threadId);
+      return;
+    }
+    if (d.type === 'send' && typeof d.text === 'string'){
+      elInput.value = d.text; autoresize(); send(); return;
+    }
+    if (d.type === 'newThread'){
+      messages.length = 0; render();
+      threadId = Math.random().toString(36).slice(2,10);
+      localStorage.setItem('threadId', threadId);
+      addMessage('assistant', 'Started a new thread. Tell me your role or task.');
+      return;
+    }
+    // optional: handle global delta here too (already handled per id in postToPageChat)
+    if (d.type === 'delta'){
+      // no-op
+      return;
+    }
+  });
+
+  // --- UI events ---
+  elSend.addEventListener('click', send);
+  elNew.addEventListener('click', () => {
+    messages.length = 0; render();
+    threadId = Math.random().toString(36).slice(2,10);
+    localStorage.setItem('threadId', threadId);
+    addMessage('assistant', 'Started a new thread. Tell me your role or task.');
+  });
+
+  elInput.addEventListener('input', autoresize);
+  elInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      send();
+    }
+  });
+
+  elMsgs.addEventListener('scroll', () => {
+    const nearBottom = elMsgs.scrollHeight - elMsgs.scrollTop - elMsgs.clientHeight < 40;
+    elToBtm.classList.toggle('show', !nearBottom);
+  });
+  elToBtm.addEventListener('click', scrollToBottom);
+
+  // --- Send flow ---
+  async function send(){
+    const text = (elInput.value || '').trim();
+    if (!text || pending) return;
+
+    addMessage('user', text);
+    elInput.value = ''; autoresize();
+    setPending(true);
+
+    try{
+      const res = await postToPageChat(text);   // streaming (delta) will also update UI
+      const data = res?.data || {};
+
+      if (data.memory){
+        elStatus.textContent = String(data.memory).includes('✅') ? 'Stored ✓' : 'Stored';
+      }
+
+      // If NOT streaming, render final assistant message here:
+      if (!currentStream) {
+        const reply = data.reply || data.body || data.error || (typeof data === 'string' ? data : JSON.stringify(data));
+        const meta = {
+          tokens: data?.telemetry ? {
+            total: data.telemetry.total_tokens,
+            prompt: data.telemetry.prompt_tokens,
+            completion: data.telemetry.completion_tokens
+          } : undefined,
+          model: data?.meta?.model,
+          prompt_version: data?.meta?.prompt_version
+        };
+        addMessage('assistant', reply, meta);
+        if (Array.isArray(data.suggestions) && data.suggestions.length) {
+          messages[messages.length-1].suggestions = data.suggestions.slice(0,6);
+          render();
+        }
+        elStatus.textContent = 'Responded';
+      }
+    }catch(err){
+      addMessage('assistant', `Network error: ${err?.message || err}`);
+      elStatus.textContent = 'Error';
+      console.error('[widget] send error', err);
+    }finally{
+      setPending(false);
+      try { elInput.focus({ preventScroll:true }); } catch(_){}
+    }
+  }
+
+  // --- Auto-resize iframe to content ---
+  function postResize(){
+    const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    try { parent.postMessage({ type:'resize', height:h }, '*'); } catch(_){}
+  }
+  new ResizeObserver(postResize).observe(document.body);
+  window.addEventListener('load', () => { autoresize(); setTimeout(()=>{ try{ elInput.focus(); }catch(_){}} , 0); postResize(); });
+
+  // Greet on first load
+  if (messages.length === 0) {
+    addMessage('assistant', 'Hi! Tell me what you’re hiring for, or paste a JD to improve.');
+  }
+  </script>
+</body>
+</html>
+
