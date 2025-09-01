@@ -352,6 +352,10 @@ window.addEventListener('message', (e) => {
           if (d.start) { currentStream = { id, idx: messages.length, text: '' }; setPending(true); return; }
           if (typeof d.text === 'string') { currentStream.text += d.text; updateLastAssistant(currentStream.text); return; }
           if (d.done) { setPending(false); elStatus.textContent = 'Responded'; currentStream = null; }
+          if (d.type === 'chatResult' && d.id === id) {
+          console.log('[widget] chatResult:', d);
+  // ...
+}
         }
       }
       window.addEventListener('message', onMsg);
@@ -435,6 +439,8 @@ window.addEventListener('message', (e) => {
        const reply =
           (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
           (typeof data === 'string' ? data : JSON.stringify(data));
+
+  
         console.log('[widget] assistant reply', reply, data);
         const meta = {
           tokens: data?.telemetry ? {
