@@ -432,7 +432,10 @@ window.addEventListener('message', (e) => {
 
       // If NOT streaming, render final assistant message here:
       if (!currentStream) {
-        const reply = data.reply || data.body || data.error || (typeof data === 'string' ? data : JSON.stringify(data));
+       const reply =
+          (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
+          (typeof data === 'string' ? data : JSON.stringify(data));
+        console.log('[widget] assistant reply', reply, data);
         const meta = {
           tokens: data?.telemetry ? {
             total: data.telemetry.total_tokens,
