@@ -463,59 +463,60 @@ window.addEventListener('message', (e) => {
   elToBtm.addEventListener('click', scrollToBottom);
 
   // --- Send flow ---
-  async function send(){
-    const text = (elInput.value || '').trim();
-    if (!text || pending) return;
+ // --- Send flow ---
+async function send(){
+  const text = (elInput.value || '').trim();
+  if (!text || pending) return;
 
-    addMessage('user', text);
-    elInput.value = ''; autoresize();
-    setPending(true);
+  addMessage('user', text);
+  elInput.value = ''; autoresize();
+  setPending(true);
 
-    try{
-      const res = await postToPageChat(text);   // streaming (delta) will also update UI
-      const data = res?.data || {};
+  try{
+    const res  = await postToPageChat(text);   // streaming (delta) may already update UI
+    const data = res?.data || {};
 
-      if (data.memory){
-        elStatus.textContent = String(data.memory).includes('✅') ? 'Stored ✓' : 'Stored';
-      }
-
-              // If NOT streaming, render final assistant message here:
-        if (!currentStream) {
-          const reply =
-            (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
-            (typeof data === 'string' ? data : JSON.stringify(data));
-          console.log('[widget] render reply:', reply);
-          addMessage('assistant', reply, meta);
-          …
-        }
-
-  
-        console.log('[widget] assistant reply', reply, data);
-        const meta = {
-          tokens: data?.telemetry ? {
-            total: data.telemetry.total_tokens,
-            prompt: data.telemetry.prompt_tokens,
-            completion: data.telemetry.completion_tokens
-          } : undefined,
-          model: data?.meta?.model,
-          prompt_version: data?.meta?.prompt_version
-        };
-        addMessage('assistant', reply, meta);
-        if (Array.isArray(data.suggestions) && data.suggestions.length) {
-          messages[messages.length-1].suggestions = data.suggestions.slice(0,6);
-          render();
-        }
-        elStatus.textContent = 'Responded';
-      }
-    }catch(err){
-      addMessage('assistant', `Network error: ${err?.message || err}`);
-      elStatus.textContent = 'Error';
-      console.error('[widget] send error', err);
-    }finally{
-      setPending(false);
-      try { elInput.focus({ preventScroll:true }); } catch(_){}
+    if (data.memory) {
+      elStatus.textContent = String(data.memory).includes('✅') ? 'Stored ✓' : 'Stored';
     }
+
+    // If NOT streaming, render final assistant message once here
+    if (!currentStream) {
+      const reply =
+        (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
+        (typeof data === 'string' ? data : JSON.stringify(data));
+
+      // Build meta FIRST, then use it
+      const metaObj = {
+        tokens: data?.telemetry ? {
+          total: data.telemetry.total_tokens,
+          prompt: data.telemetry.prompt_tokens,
+          completion: data.telemetry.completion_tokens
+        } : undefined,
+        model: data?.meta?.model,
+        prompt_version: data?.meta?.prompt_version
+      };
+
+      console.log('[widget] render reply:', reply);
+      addMessage('assistant', reply, metaObj);
+
+      if (Array.isArray(data.suggestions) && data.suggestions.length) {
+        messages[messages.length - 1].suggestions = data.suggestions.slice(0, 6);
+        render();
+      }
+
+      elStatus.textContent = 'Responded';
+    }
+  } catch(err) {
+    addMessage('assistant', `Network error: ${err?.message || err}`);
+    elStatus.textContent = 'Error';
+    console.error('[widget] send error', err);
+  } finally {
+    setPending(false);
+    try { elInput.focus({ preventScroll:true }); } catch(_){}
   }
+}
+
 
   // --- Auto-resize iframe to content ---
   function postResize(){
