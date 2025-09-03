@@ -340,34 +340,74 @@ window.addEventListener('message', (e) => {
   }
 
   // --- Page bridge (postMessage) ---
-  function postToPageChat(text){
-    return new Promise((resolve) => {
-      const id = Math.random().toString(36).slice(2,10);
-      function onMsg(ev){
-        const d = ev.data || {};
-        if (d.type === 'chatResult' && d.id === id) {
-          console.log('[widget] chatResult:', d.data);   // <= must contain .text with your answer
+ function postToPageChat(text){
+  return new Promise((resolve) => {
+    const id = Math.random().toString(36).slice(2,10);
+
+    function onMsg(ev){
+      const d = ev.data || {};
+      if (d.id !== id) return;  // ignore other chats
+
+      // --- Streaming path (delta) ---
+      if (d.type === 'delta') {
+        if (d.start) {
+          currentStream = { id, idx: messages.length, text: '' };
+          setPending(true);
+          return;
+        }
+        if (typeof d.text === 'string') {
+          currentStream.text += d.text;
+          updateLastAssistant(currentStream.text);
+          return;
+        }
+        if (d.done) {
+          setPending(false);
+          elStatus.textContent = 'Responded';
+          // Resolve with the assembled text so callers don't hang on streams
+          const assembled = (currentStream && currentStream.text) || '';
+          currentStream = null;
           window.removeEventListener('message', onMsg);
-          resolve(d);
+          resolve({ type:'chatResult', id, ok:true, data:{ text: assembled } });
+          return;
+        }
+        return;
+      }
+
+      // --- Normal response path (non-stream) ---
+      if (d.type === 'chatResult') {
+        console.log('[widget] chatResult:', d.data); // should contain .text
+        window.removeEventListener('message', onMsg);
+
+        // If you want to render here when not streaming:
+        const reply = (d?.data?.text ?? d?.data?.reply ?? d?.data?.message ?? d?.data?.body ?? '');
+        if (!currentStream) {
+          addMessage('assistant', reply);
+          if (Array.isArray(d?.data?.suggestions) && d.data.suggestions.length) {
+            messages[messages.length-1].suggestions = d.data.suggestions.slice(0,6);
+            render();
+          }
+          elStatus.textContent = 'Responded';
         }
 
-        }
-        if (d.type === 'delta' && d.id === id) {
-          // streaming delta path
-          if (d.start) { currentStream = { id, idx: messages.length, text: '' }; setPending(true); return; }
-          if (typeof d.text === 'string') { currentStream.text += d.text; updateLastAssistant(currentStream.text); return; }
-          if (d.done) { setPending(false); elStatus.textContent = 'Responded'; currentStream = null; }
-          if (d.type === 'chatResult' && d.id === id) {
-          console.log('[widget] chatResult:', d);
-  // ...
-}
-        }
+        resolve(d);
+        return;
       }
-      window.addEventListener('message', onMsg);
-      const payload = { type:'chat', id, text };
-      pageReady ? parent.postMessage(payload, '*') : outbox.push(payload);
-    });
-  }
+    }
+
+    window.addEventListener('message', onMsg);
+
+    // Kick off the request to the page
+    parent.postMessage({ type:'chat', id, text }, '*');
+
+    // Optional: safety timeout so Promise never hangs forever
+    setTimeout(() => {
+      try { window.removeEventListener('message', onMsg); } catch(_) {}
+      if (currentStream) { currentStream = null; setPending(false); }
+      resolve({ ok:false, error:'timeout' });
+    }, 25000);
+  });
+}
+
 
   window.addEventListener('message', (e) => {
     const d = e.data || {};
