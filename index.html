@@ -158,6 +158,8 @@ const STARTERS = {
 let startersFlow = START_DEFAULT_FLOW;  // 'hiring' | 'outcome' | 'automation' | 'screening'
 
   // --- State ---
+
+  
   const messages = [];          // {role:'user'|'assistant', text, ts, suggestions?, meta?}
   let pending = false;
   let pageReady = false;
@@ -344,8 +346,11 @@ window.addEventListener('message', (e) => {
       function onMsg(ev){
         const d = ev.data || {};
         if (d.type === 'chatResult' && d.id === id) {
+          console.log('[widget] chatResult:', d.data);   // <= must contain .text with your answer
           window.removeEventListener('message', onMsg);
           resolve(d);
+        }
+
         }
         if (d.type === 'delta' && d.id === id) {
           // streaming delta path
@@ -434,11 +439,15 @@ window.addEventListener('message', (e) => {
         elStatus.textContent = String(data.memory).includes('✅') ? 'Stored ✓' : 'Stored';
       }
 
-      // If NOT streaming, render final assistant message here:
-      if (!currentStream) {
-       const reply =
-          (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
-          (typeof data === 'string' ? data : JSON.stringify(data));
+              // If NOT streaming, render final assistant message here:
+        if (!currentStream) {
+          const reply =
+            (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
+            (typeof data === 'string' ? data : JSON.stringify(data));
+          console.log('[widget] render reply:', reply);
+          addMessage('assistant', reply, meta);
+          …
+        }
 
   
         console.log('[widget] assistant reply', reply, data);
