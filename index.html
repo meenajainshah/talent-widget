@@ -262,19 +262,17 @@ function renderStarterChips() {
     </div>`;
   }
 
-  function render(){
-    const html = messages.map((m, i) => `
-      <div class="row ${m.role==='user'?'user':''}">
-        ${m.role==='user' ? '' : avatarHTML('assistant')}
-        <div class="bubble ${m.role==='user'?'user':'bot'}">
-          ${m.role==='assistant' ? renderMarkdown(m.text) : escapeHtml(m.text)}
-          ${m.role==='assistant' ? actionBar(i) : ''}
-          ${m.role==='assistant' && m.suggestions ? suggestionsChips(m.suggestions, i) : ''}
-        </div>
-        ${m.role==='user' ? avatarHTML('user') : ''}
+ function render(){
+  const html = messages.map((m) => `
+    <div class="row ${m.role==='user'?'user':''}">
+      ${m.role==='user' ? '' : avatarHTML('assistant')}
+      <div class="bubble ${m.role==='user'?'user':'bot'}">
+        ${m.role==='assistant' ? renderMarkdown(m.text) : escapeHtml(m.text)}
       </div>
-    `).join('');
-    elMsgs.innerHTML = html;
+      ${m.role==='user' ? avatarHTML('user') : ''}
+    </div>
+  `).join('');
+  elMsgs.innerHTML = html;
 
     // bind actions
     elMsgs.querySelectorAll('[data-act="copy"]').forEach(b => b.onclick = () => {
