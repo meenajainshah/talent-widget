@@ -340,7 +340,7 @@ window.addEventListener('message', (e) => {
   }
 
   // --- Page bridge (postMessage) ---
- function postToPageChat(text){
+function postToPageChat(text){
   return new Promise((resolve) => {
     const id = Math.random().toString(36).slice(2,10);
 
@@ -363,11 +363,11 @@ window.addEventListener('message', (e) => {
         if (d.done) {
           setPending(false);
           elStatus.textContent = 'Responded';
-          // Resolve with the assembled text so callers don't hang on streams
           const assembled = (currentStream && currentStream.text) || '';
           currentStream = null;
           window.removeEventListener('message', onMsg);
-          resolve({ type:'chatResult', id, ok:true, data:{ text: assembled } });
+          // ✅ tell caller this came from streaming so it MUST NOT add again
+          resolve({ stream: true, type:'chatResult', id, ok:true, data:{ text: assembled } });
           return;
         }
         return;
@@ -375,31 +375,15 @@ window.addEventListener('message', (e) => {
 
       // --- Normal response path (non-stream) ---
       if (d.type === 'chatResult') {
-        console.log('[widget] chatResult:', d.data); // should contain .text
         window.removeEventListener('message', onMsg);
-
-        // If you want to render here when not streaming:
-        const reply = (d?.data?.text ?? d?.data?.reply ?? d?.data?.message ?? d?.data?.body ?? '');
-        if (!currentStream) {
-          addMessage('assistant', reply);
-          if (Array.isArray(d?.data?.suggestions) && d.data.suggestions.length) {
-            messages[messages.length-1].suggestions = d.data.suggestions.slice(0,6);
-            render();
-          }
-          elStatus.textContent = 'Responded';
-        }
-
-        resolve(d);
+        resolve({ stream: false, ...d });
         return;
       }
     }
 
     window.addEventListener('message', onMsg);
-
-    // Kick off the request to the page
     parent.postMessage({ type:'chat', id, text }, '*');
 
-    // Optional: safety timeout so Promise never hangs forever
     setTimeout(() => {
       try { window.removeEventListener('message', onMsg); } catch(_) {}
       if (currentStream) { currentStream = null; setPending(false); }
@@ -407,6 +391,7 @@ window.addEventListener('message', (e) => {
     }, 25000);
   });
 }
+
 
 
   window.addEventListener('message', (e) => {
@@ -463,7 +448,6 @@ window.addEventListener('message', (e) => {
   elToBtm.addEventListener('click', scrollToBottom);
 
   // --- Send flow ---
- // --- Send flow ---
 async function send(){
   const text = (elInput.value || '').trim();
   if (!text || pending) return;
@@ -473,20 +457,20 @@ async function send(){
   setPending(true);
 
   try{
-    const res  = await postToPageChat(text);   // streaming (delta) may already update UI
+    const res  = await postToPageChat(text);   // may stream or not
     const data = res?.data || {};
+    const cameFromStream = !!res?.stream;
 
     if (data.memory) {
       elStatus.textContent = String(data.memory).includes('✅') ? 'Stored ✓' : 'Stored';
     }
 
-    // If NOT streaming, render final assistant message once here
-    if (!currentStream) {
+    // Only render here if NOT streaming (the stream already created/updated the assistant bubble)
+    if (!cameFromStream) {
       const reply =
         (data && (data.text ?? data.reply ?? data.message ?? data.body ?? data.error)) ??
         (typeof data === 'string' ? data : JSON.stringify(data));
 
-      // Build meta FIRST, then use it
       const metaObj = {
         tokens: data?.telemetry ? {
           total: data.telemetry.total_tokens,
@@ -497,7 +481,6 @@ async function send(){
         prompt_version: data?.meta?.prompt_version
       };
 
-      console.log('[widget] render reply:', reply);
       addMessage('assistant', reply, metaObj);
 
       if (Array.isArray(data.suggestions) && data.suggestions.length) {
